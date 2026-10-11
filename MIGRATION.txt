@@ -1,0 +1,80 @@
+CBee Product Filters: migration from the old filters
+=====================================================
+
+Do this on test.cbee.ch first, then repeat on cbee.ch.
+Zip: cbee-product-filters.zip (build with ./build.sh; the version is in the plugin header).
+
+Before you start
+- Note down (or screenshot) the current sidebar widgets so you can put them back.
+- Copy the old [cbee_sofort_verfuegbar] PHP snippet somewhere safe before disabling it.
+- Optional: take a backup. Nothing in the database is changed by this plugin.
+
+1. Install the plugin
+   Plugins -> Add New -> Upload Plugin -> cbee-product-filters.zip -> Install -> Activate.
+   (If an older version is installed, upload over it and choose "Replace current with uploaded".)
+   Requires WooCommerce and the Blocksy theme markup (see "Known limits").
+
+2. Disable the old PHP snippet FIRST
+   Disable (not just unlink) the code snippet that defines [cbee_sofort_verfuegbar] and hooks
+   woocommerce_product_query. Reasons:
+   - It reacts to ?sofort_verfuegbar=1 and loads the entire catalogue, which made every
+     "Sofort verfügbar" click take about 5 seconds.
+   Do this before step 3 so you never see both at once.
+
+3. Add the new shortcodes
+   Appearance -> Widgets (or Blocksy Customizer -> Widgets -> Sidebar). Use a "Shortcode" block per line.
+   Suggested order (same as before, without the iks menu, which stays):
+
+     [cbee_availability_filter]
+     [cbee_attribute_filter attribute="grosse" title="Grösse"]
+     [cbee_attribute_filter attribute="kopfumfang-groesse" title="Kopfumfang"]
+     [cbee_attribute_filter attribute="schal-groesse" title="Schal"]
+     [cbee_attribute_filter attribute="stoffart" title="Stoffart"]
+     [cbee_reset_filter]
+
+   - [cbee_availability_filter]: "Sofort verfügbar" and "Sale".
+   - [cbee_reset_filter]: the "Filter zurücksetzen" link, shown only while a filter is active.
+     Put it wherever you like (top or bottom of the filters).
+   - Attribute filters show nothing when no value applies (for example Kopfumfang on Oberteile).
+   - Keep the iks menu widget ([iks_menu id="2958"]) as it is.
+
+4. Remove the old widgets
+   Delete these widgets from the sidebar:
+   - the old [cbee_sofort_verfuegbar] shortcode widget (the plugin no longer knows that name, so a
+     leftover widget would print the plain text)
+   - the WooCommerce "Filter by attribute" blocks: Grösse, Kopfumfang (both), Stoffart
+   (Both old and new use the same filter_<attribute> URLs, so old links keep working.)
+
+5. Clean up the extra CSS (optional)
+   In Blocksy -> Additional CSS, remove the rule for "ul.wc-block-product-categories-list li".
+   It belongs to a block that is no longer on the page. Leave the rest.
+
+6. Purge caches
+   LiteSpeed: purge all. Hostinger CDN / cache: purge. Then reload with a hard refresh
+   (the plugin files carry the version in the URL, so they refresh on their own).
+
+7. Check (desktop and phone)
+   - /product-category/oberteile/ : all new widgets appear, sizes sorted smallest to largest,
+     "Mehr anzeigen" after 10 entries.
+   - Click "Sofort verfügbar", "Sale", a size, a fabric: the grid updates without a page reload,
+     a spinner shows, the address bar changes.
+   - Browser back button returns to the previous filter state.
+   - "Filter zurücksetzen" clears everything.
+   - Sale filter: a product that is sold out is not listed. Sizes that are sold out are not offered.
+   - Pagination clicks also swap without reload.
+   - A hat category (Mützen/Schals): Kopfumfang and Schal appear.
+   - Wishlist heart and product images still work after a filter click.
+   - Uncached filter pages respond in about 1 second.
+
+Rollback
+   Re-add the old widgets (and the old snippet if needed), then deactivate the plugin.
+   No data to restore.
+
+Known limits
+- Relies on Blocksy's markup (#main .ct-container > section, .ct-pagination). After a theme update that
+  changes it, filtering falls back to normal page loads (nothing breaks). Re-test after Blocksy updates.
+- The sort dropdown still reloads the page.
+- Filtered pages are cached for 5 minutes (header X-LiteSpeed-Cache-Control), so stock changes show up
+  within about 5 minutes. Change with the filter cbee_pf_cache_ttl (0 = no caching).
+- Attribute filter widgets only appear on the shop page and product category/tag/attribute archives
+  (not on search results or other pages). Search results were not tested.
