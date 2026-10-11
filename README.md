@@ -1,6 +1,6 @@
 # CBee Product Filters
 
-Version 0.3.7 (step 3 of 3): "Sofort verfügbar", "Sale" and attribute filters for WooCommerce archive pages.
+Version 0.4.1 (step 3 of 3): "Sofort verfügbar", "Sale" and attribute filters for WooCommerce archive pages.
 
 - Shortcode `[cbee_availability_filter]` shows two checkboxes (plain links).
 - URL parameters: `sofort=1` (legacy `sofort_verfuegbar=1` still read), `sale=1`. Works together with `filter_<attribute>=<slug,slug>`.
@@ -21,8 +21,12 @@ Version 0.3.7 (step 3 of 3): "Sofort verfügbar", "Sale" and attribute filters f
 
 Attributes on the shop: Grösse `pa_grosse`, Kopfumfang `pa_kopfumfang-groesse`, Schal `pa_schal-groesse`, Stoffart `pa_stoffart`.
 
-## No-reload filtering (0.3.7)
+## No-reload filtering (0.4.1)
 Clicks on filter links and pagination fetch the target URL, swap the product section (`#main .ct-container > section`)
 and the `.cbee-pf` panels, update the address bar (`pushState`) and the title. Any failure, or a panel count that differs
 between old and new page, falls back to a normal page load. Event `cbee-pf:updated` fires after each swap.
 Depends on Blocksy's markup; the sort dropdown still reloads the page.
+
+## Sale badge (0.4.1)
+`woocommerce_sale_flash` shows the discount: `-10%`, or `bis zu -20%` when only some variations are on sale or the
+discount differs between them. Rounded up.
