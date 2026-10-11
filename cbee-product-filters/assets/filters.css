@@ -1,0 +1,26 @@
+.cbee-pf-title {
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+.cbee-pf-check {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	color: inherit;
+	text-decoration: none;
+}
+.cbee-pf-box {
+	flex: none;
+	width: 20px;
+	height: 20px;
+	box-sizing: border-box;
+	border: 2px solid var(--theme-border-color, currentColor);
+	border-radius: 3px;
+	background: transparent;
+}
+.cbee-pf-check.is-on .cbee-pf-box {
+	border-color: var(--theme-palette-color-1, currentColor);
+	background: var(--theme-palette-color-1, currentColor);
+	box-shadow: inset 0 0 0 3px #fff;
+}
