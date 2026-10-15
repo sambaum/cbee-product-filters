@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CBee Product Filters
  * Description: Lean product filters for WooCommerce: "Sofort verfügbar", "Sale" and stock-aware attribute filters, evaluated per variation in SQL.
- * Version: 0.4.1
+ * Version: 0.4.2
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const CBEE_PF_VERSION = '0.4.1';
+const CBEE_PF_VERSION = '0.4.2';
 
 // Query parameter names. The old snippet's name (sofort_verfuegbar) is still accepted, but never written: that snippet
 // hooks the same parameter and loads the whole catalogue whenever it sees it, which made every click take seconds.
@@ -199,7 +199,15 @@ function cbee_pf_item( $label, $url, $on, $count = null ) {
 	);
 }
 
+/** Filters only make sense where a product list is shown. */
+function cbee_pf_is_archive() {
+	return function_exists( 'is_shop' ) && ( is_shop() || is_product_taxonomy() );
+}
+
 function cbee_pf_render() {
+	if ( ! cbee_pf_is_archive() ) {
+		return '';
+	}
 	cbee_pf_enqueue();
 
 	$items = array(
@@ -216,6 +224,9 @@ function cbee_pf_render() {
 
 /** [cbee_reset_filter]: clears every filter. Place it where it suits, e.g. at the top or bottom of the filters. */
 function cbee_pf_render_reset() {
+	if ( ! cbee_pf_is_archive() ) {
+		return '';
+	}
 	cbee_pf_enqueue();
 	if ( ! ( cbee_pf_engine_needed() || cbee_pf_selected_attributes() ) ) {
 		return '<div class="cbee-pf" hidden></div>'; // keeps the panel count stable for the no-reload swap
@@ -306,7 +317,7 @@ function cbee_pf_render_attribute( $atts ) {
 	$atts     = shortcode_atts( array( 'attribute' => '', 'title' => '' ), $atts );
 	$slug     = sanitize_title( $atts['attribute'] );
 	$taxonomy = 'pa_' . $slug;
-	if ( ! function_exists( 'wc_attribute_label' ) || ! taxonomy_exists( $taxonomy ) || ! ( is_shop() || is_product_taxonomy() ) ) {
+	if ( ! function_exists( 'wc_attribute_label' ) || ! taxonomy_exists( $taxonomy ) || ! cbee_pf_is_archive() ) {
 		return '';
 	}
 	cbee_pf_enqueue();
