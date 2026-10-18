@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CBee Product Filters
  * Description: Lean product filters for WooCommerce: "Sofort verfügbar", "Sale" and stock-aware attribute filters, evaluated per variation in SQL.
- * Version: 0.4.2
+ * Version: 0.4.9
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const CBEE_PF_VERSION = '0.4.2';
+const CBEE_PF_VERSION = '0.4.9';
 
 // Query parameter names. The old snippet's name (sofort_verfuegbar) is still accepted, but never written: that snippet
 // hooks the same parameter and loads the whole catalogue whenever it sees it, which made every click take seconds.
@@ -72,6 +72,20 @@ add_action( 'woocommerce_product_query', function ( $q ) {
 		$q->set( 'cbee_pf', 1 );
 	}
 } );
+
+// The counter query must not see the selection of its own attribute. WordPress turns the chosen size into the
+// taxonomy/term query vars and adds it as a term condition, so clear those too, after everyone else has run.
+add_action( 'pre_get_posts', function ( $q ) {
+	$skip = $q->get( 'cbee_pf_skip' );
+	if ( $skip ) {
+		$q->set( $skip, '' );
+		if ( $q->get( 'taxonomy' ) === $skip ) {
+			$q->set( 'taxonomy', '' );
+			$q->set( 'term', '' );
+		}
+		$q->set( 'tax_query', cbee_pf_drop_taxonomy( $q->get( 'tax_query' ), $skip ) );
+	}
+}, PHP_INT_MAX );
 
 add_filter( 'posts_clauses', function ( $clauses, $q ) {
 	if ( ! $q->get( 'cbee_pf' ) ) {
@@ -167,12 +181,26 @@ add_action( 'template_redirect', function () {
 	header( 'X-LiteSpeed-Cache-Control: ' . ( $ttl > 0 ? 'public,max-age=' . $ttl : 'no-cache' ) );
 } );
 
+/** Admin-only debug: add ?cbee_debug=1 to a page and read the browser console. Off for everyone else. */
+function cbee_pf_debug( $label, $data ) {
+	static $log = array();
+	if ( ! isset( $_GET['cbee_debug'] ) || ! current_user_can( 'manage_options' ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		return;
+	}
+	if ( ! $log ) {
+		add_action( 'wp_footer', function () use ( &$log ) {
+			echo '<script>console.log("cbee-pf", ' . wp_json_encode( $log ) . ');</script>';
+		}, 99 );
+	}
+	$log[] = array( $label => $data );
+}
+
 /** Current page URL without pagination; $changes maps parameter => value, null removes it. */
 function cbee_pf_url( array $changes ) {
 	$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 	$path = preg_replace( '#/page/\d+/?#', '/', strtok( $uri, '?' ) );
 	$args = $_GET; // phpcs:ignore WordPress.Security.NonceVerification
-	unset( $args['paged'], $args['product-page'] );
+	unset( $args['paged'], $args['product-page'], $args['cbee_debug'] );
 	foreach ( $changes as $key => $value ) {
 		if ( null === $value ) {
 			unset( $args[ $key ] );
@@ -243,33 +271,40 @@ add_shortcode( 'cbee_reset_filter', 'cbee_pf_render_reset' );
 
 add_shortcode( 'cbee_availability_filter', 'cbee_pf_render' );
 
+/** Removes the clauses of one taxonomy from a tax_query, nested groups included. */
+function cbee_pf_drop_taxonomy( $clauses, $taxonomy ) {
+	$out = array();
+	foreach ( (array) $clauses as $key => $clause ) {
+		if ( is_array( $clause ) && isset( $clause['taxonomy'] ) && $clause['taxonomy'] === $taxonomy ) {
+			continue;
+		}
+		$out[ $key ] = is_array( $clause ) && ! isset( $clause['taxonomy'] ) ? cbee_pf_drop_taxonomy( $clause, $taxonomy ) : $clause;
+	}
+	return $out;
+}
+
 /** IDs of the products the current archive would show, ignoring the selection of $taxonomy (so its other values stay visible). */
 function cbee_pf_context_ids( $taxonomy ) {
 	global $wp_query;
-	$drop = function ( $clauses ) use ( &$drop, $taxonomy ) {
-		$out = array();
-		foreach ( (array) $clauses as $key => $clause ) {
-			if ( is_array( $clause ) && isset( $clause['taxonomy'] ) && $clause['taxonomy'] === $taxonomy ) {
-				continue;
-			}
-			$out[ $key ] = is_array( $clause ) && ! isset( $clause['taxonomy'] ) ? $drop( $clause ) : $clause;
-		}
-		return $out;
-	};
 	$args                     = $wp_query->query_vars;
-	$args['tax_query']        = $drop( isset( $args['tax_query'] ) ? $args['tax_query'] : array() );
+	$args['tax_query']        = cbee_pf_drop_taxonomy( isset( $args['tax_query'] ) ? $args['tax_query'] : array(), $taxonomy );
 	$args['fields']           = 'ids';
 	$args['nopaging']         = true;
 	$args['posts_per_page']   = -1;
 	$args['no_found_rows']    = true;
 	$args['orderby']          = 'none';
 	$args['cbee_pf']          = 1;
+	unset( $args[ $taxonomy ] );
+	if ( isset( $args['taxonomy'] ) && $args['taxonomy'] === $taxonomy ) {
+		unset( $args['taxonomy'], $args['term'] );
+	}
 	$args['cbee_pf_skip']     = $taxonomy;
 	$args['suppress_filters'] = false;
 	if ( ! cbee_pf_engine_needed() && ! cbee_pf_is_variation_attr( $taxonomy ) ) {
 		$args['cbee_pf'] = 0;
 	}
 	$query = new WP_Query( $args );
+	cbee_pf_debug( 'context ' . $taxonomy, array( 'sql' => $query->request, 'tax_query' => $query->tax_query->queries ) );
 	return array_map( 'intval', $query->posts );
 }
 
