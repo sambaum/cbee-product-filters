@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CBee Product Filters
  * Description: Lean product filters for WooCommerce: "Sofort verfügbar", "Sale" and stock-aware attribute filters, evaluated per variation in SQL.
- * Version: 0.4.9
+ * Version: 0.4.10
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const CBEE_PF_VERSION = '0.4.9';
+const CBEE_PF_VERSION = '0.4.10';
 
 // Query parameter names. The old snippet's name (sofort_verfuegbar) is still accepted, but never written: that snippet
 // hooks the same parameter and loads the whole catalogue whenever it sees it, which made every click take seconds.
@@ -413,33 +413,3 @@ function cbee_pf_render_attribute( $atts ) {
 	return '<div class="cbee-pf"><div class="cbee-pf-title">' . esc_html( $title ) . '</div><div class="cbee-pf-list' . ( $collapse ? ' is-collapsed' : '' ) . '">' . implode( '', $rows ) . '</div>' . $more . '</div>';
 }
 add_shortcode( 'cbee_attribute_filter', 'cbee_pf_render_attribute' );
-
-/**
- * Sale badge with the discount: "-10%", or "bis zu -20%" when only some variations are on sale
- * or the discount differs per variation. Percentages are rounded up.
- */
-add_filter( 'woocommerce_sale_flash', function ( $html, $post, $product ) {
-	if ( ! $product instanceof WC_Product ) {
-		return $html;
-	}
-	$percents = array();
-	$total    = 1;
-	if ( $product->is_type( 'variable' ) ) {
-		$prices  = $product->get_variation_prices( true );
-		$total   = count( $prices['regular_price'] );
-		foreach ( $prices['regular_price'] as $id => $regular ) {
-			$sale = $prices['sale_price'][ $id ];
-			if ( (float) $regular > 0 && (float) $sale < (float) $regular ) {
-				$percents[] = (int) ceil( ( 1 - (float) $sale / (float) $regular ) * 100 );
-			}
-		}
-	} elseif ( (float) $product->get_regular_price() > 0 && '' !== $product->get_sale_price() ) {
-		$percents[] = (int) ceil( ( 1 - (float) $product->get_sale_price() / (float) $product->get_regular_price() ) * 100 );
-	}
-	if ( ! $percents ) {
-		return $html;
-	}
-	$max  = max( $percents );
-	$text = ( count( $percents ) < $total || min( $percents ) !== $max ? 'bis zu ' : '' ) . '-' . $max . '%';
-	return preg_replace( '/>[^<]+</', '>' . esc_html( $text ) . '<', $html, 1 );
-}, 99, 3 ); // late: Blocksy filters the same badge and would overwrite ours

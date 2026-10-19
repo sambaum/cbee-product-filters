@@ -27,6 +27,5 @@ and the `.cbee-pf` panels, update the address bar (`pushState`) and the title. A
 between old and new page, falls back to a normal page load. Event `cbee-pf:updated` fires after each swap.
 Depends on Blocksy's markup; the sort dropdown still reloads the page.
 
-## Sale badge (0.4.1)
-`woocommerce_sale_flash` shows the discount: `-10%`, or `bis zu -20%` when only some variations are on sale or the
-discount differs between them. Rounded up.
+## Sale badge
+Moved to the CBee Customizing plugin (Mods tab) in 0.4.10.
