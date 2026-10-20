@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CBee Product Filters
  * Description: Lean product filters for WooCommerce: a responsive pill bar with "Sofort verfügbar", "Sale" and stock-aware attribute filters, evaluated per variation in SQL.
- * Version: 0.7.2
+ * Version: 0.7.3
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const CBEE_PF_VERSION = '0.7.2';
+const CBEE_PF_VERSION = '0.7.3';
 
 // Query parameter names. The old snippet's name (sofort_verfuegbar) is still accepted, but never written: that snippet
 // hooks the same parameter and loads the whole catalogue whenever it sees it, which made every click take seconds.
@@ -226,6 +226,29 @@ function cbee_pf_item( $label, $url, $on, $count = null ) {
 		null === $count ? '' : '<span class="cbee-pf-count">' . (int) $count . '</span>'
 	);
 }
+
+/**
+ * A card link carries the chosen size to the product page, so it is preselected there. Only when exactly one of the
+ * selected values exists on that product: with two or more matches it would be a guess.
+ */
+add_filter( 'woocommerce_loop_product_link', function ( $link, $product ) {
+	if ( ! $product || ! $product->is_type( 'variable' ) || ! cbee_pf_is_archive() ) {
+		return $link;
+	}
+	$selected = cbee_pf_selected_variation_attributes();
+	if ( ! $selected ) {
+		return $link;
+	}
+	$offered = $product->get_variation_attributes();
+	$args    = array();
+	foreach ( $selected as $taxonomy => $slugs ) {
+		$match = isset( $offered[ $taxonomy ] ) ? array_values( array_intersect( $slugs, $offered[ $taxonomy ] ) ) : array();
+		if ( 1 === count( $match ) ) {
+			$args[ 'attribute_' . $taxonomy ] = $match[0];
+		}
+	}
+	return $args ? add_query_arg( $args, $link ) : $link;
+}, 10, 2 );
 
 /** Filters only make sense where a product list is shown. */
 function cbee_pf_is_archive() {
