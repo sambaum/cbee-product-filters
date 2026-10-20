@@ -39,7 +39,7 @@ function cbee_pf_render_settings() {
 	echo '<p class="description">Enabled: shown at all. In bar: also as a pill above the products (otherwise only in the full Filter view). Colours: show a colour dot per value; set a colour on each value under Products &rarr; Attributes &rarr; Configure terms, or leave it automatic (derived from the name).</p>';
 	submit_button();
 	echo '</form>';
-	echo '<h2>Deprecated shortcodes</h2><p><code>[cbee_availability_filter]</code>, <code>[cbee_attribute_filter]</code> and <code>[cbee_reset_filter]</code> still work. Administrators see a notice under each one. Remove them from the sidebar once <code>[cbee_filters]</code> is in place.</p></div>';
+	echo '</div>';
 }
 
 add_action( 'admin_post_cbee_pf_save', function () {

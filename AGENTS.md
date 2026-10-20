@@ -7,7 +7,7 @@ Instructions for AI coding assistants working on this repo.
 `[cbee_sofort_verfuegbar]` snippet and, step by step, the WooCommerce attribute filter blocks in the Blocksy sidebar.
 Requirements and decisions: `requirements.md`.
 
-- `cbee-product-filters.php`: query engine (one SQL fragment via `posts_clauses`), cache header, shortcodes.
+- `cbee-product-filters.php`: query engine (one SQL fragment via `posts_clauses`), cache header, the `[cbee_filters]` bar, sort and settings (`includes/admin.php`).
 - `assets/filters.css`: styles, themed through Blocksy CSS variables.
 
 ## Rules (do not break)

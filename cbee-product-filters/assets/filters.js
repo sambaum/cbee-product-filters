@@ -42,7 +42,7 @@
 		var unchanged = same(u, new URL(location.href));
 		pending = {};
 		pendingSel = {};
-		if (!unchanged) load(u.toString(), true, -1);
+		if (!unchanged) load(u.toString(), true);
 	}
 
 	function labelButtons() {
@@ -221,29 +221,20 @@
 			return closeAll();
 		}
 		if (e.target === scrim) return closeAll();
-		var btn = e.target.closest('.cbee-pf-more');
-		if (btn) {
-			var list = btn.previousElementSibling;
-			var open = list.classList.toggle('is-collapsed') === false;
-			btn.setAttribute('aria-expanded', open);
-			btn.textContent = open ? 'Weniger anzeigen' : 'Mehr anzeigen';
-			return;
-		}
-		var a = e.target.closest('.cbee-pf a, .cbee-pfb a, .pfp a, ' + GRID + ' .ct-pagination a');
+		var a = e.target.closest('.cbee-pfb a, .pfp a, ' + GRID + ' .ct-pagination a');
 		if (!a || a.getAttribute('href').charAt(0) === '#' || e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || !window.fetch || !window.AbortController) return;
 		e.preventDefault();
 		a.classList.add('is-busy');
-		var links = Array.prototype.slice.call(document.querySelectorAll('.cbee-pf a'));
-		load(a.href, true, links.indexOf(a));
+		load(a.href, true);
 	});
 
 	window.addEventListener('popstate', function () {
-		load(location.href, false, -1);
+		load(location.href, false);
 	});
 
-	function load(url, push, focusIndex) {
+	function load(url, push) {
 		var grid = document.querySelector(GRID);
-		var panels = document.querySelectorAll('.cbee-pf, .cbee-pfb');
+		var bars = document.querySelectorAll('.cbee-pfb');
 		if (ctrl) ctrl.abort();
 		ctrl = new AbortController();
 		grid.classList.add('cbee-pf-loading');
@@ -257,31 +248,18 @@
 			.then(function (html) {
 				var doc = new DOMParser().parseFromString(html, 'text/html');
 				var newGrid = doc.querySelector(GRID);
-				var newPanels = doc.querySelectorAll('.cbee-pf, .cbee-pfb');
-				if (!newGrid || newPanels.length !== panels.length) throw new Error('markup');
+				var newBars = doc.querySelectorAll('.cbee-pfb');
+				if (!newGrid || newBars.length !== bars.length) throw new Error('markup');
 
-				var expanded = Array.prototype.map.call(panels, function (p) {
-					var l = p.querySelector('.cbee-pf-list');
-					return l && !l.classList.contains('is-collapsed');
-				});
 				grid.replaceWith(newGrid);
-				Array.prototype.forEach.call(panels, function (p, i) {
+				Array.prototype.forEach.call(bars, function (p, i) {
 					if (!p.isConnected) return; // inside the grid just replaced: the new copy came with it
-					p.replaceWith(newPanels[i]);
-					var l = newPanels[i].querySelector('.cbee-pf-list.is-collapsed');
-					var b = newPanels[i].querySelector('.cbee-pf-more');
-					if (expanded[i] && l && b) {
-						l.classList.remove('is-collapsed');
-						b.setAttribute('aria-expanded', 'true');
-						b.textContent = 'Weniger anzeigen';
-					}
+					p.replaceWith(newBars[i]);
 				});
 				restore();
 				document.title = doc.title;
 				if (push) history.pushState(null, '', url);
 				if (newGrid.getBoundingClientRect().top < 0) newGrid.scrollIntoView();
-				var f = focusIndex >= 0 && document.querySelectorAll('.cbee-pf a')[focusIndex];
-				if (f) f.focus({ preventScroll: true });
 				document.documentElement.classList.remove('cbee-pf-busy');
 				document.dispatchEvent(new CustomEvent('cbee-pf:updated'));
 			})

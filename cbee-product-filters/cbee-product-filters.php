@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CBee Product Filters
  * Description: Lean product filters for WooCommerce: a responsive pill bar with "Sofort verfügbar", "Sale" and stock-aware attribute filters, evaluated per variation in SQL.
- * Version: 0.7.3
+ * Version: 0.8.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -12,16 +12,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const CBEE_PF_VERSION = '0.7.3';
+const CBEE_PF_VERSION = '0.8.0';
 
 // Query parameter names. The old snippet's name (sofort_verfuegbar) is still accepted, but never written: that snippet
 // hooks the same parameter and loads the whole catalogue whenever it sees it, which made every click take seconds.
 const CBEE_PF_STOCK  = 'sofort';
 const CBEE_PF_LEGACY = 'sofort_verfuegbar';
 const CBEE_PF_SALE  = 'sale';
-
-// Rows shown before "Mehr anzeigen"; filters.css hides rows after the 10th (nth-child(n+11)).
-const CBEE_PF_LIMIT = 10;
 
 function cbee_pf_active( $key ) {
 	if ( CBEE_PF_STOCK === $key && isset( $_GET[ CBEE_PF_LEGACY ] ) && '1' === $_GET[ CBEE_PF_LEGACY ] ) { // phpcs:ignore WordPress.Security.NonceVerification
@@ -216,17 +213,6 @@ function cbee_pf_enqueue() {
 	wp_enqueue_script( 'cbee-pf', plugins_url( 'assets/filters.js', __FILE__ ), array(), CBEE_PF_VERSION, true );
 }
 
-function cbee_pf_item( $label, $url, $on, $count = null ) {
-	return sprintf(
-		'<a class="cbee-pf-check%s" href="%s" rel="nofollow" role="checkbox" aria-checked="%s"><span class="cbee-pf-box"></span><span class="cbee-pf-label">%s</span>%s</a>',
-		$on ? ' is-on' : '',
-		$url,
-		$on ? 'true' : 'false',
-		esc_html( $label ),
-		null === $count ? '' : '<span class="cbee-pf-count">' . (int) $count . '</span>'
-	);
-}
-
 /**
  * A card link carries the chosen size to the product page, so it is preselected there. Only when exactly one of the
  * selected values exists on that product: with two or more matches it would be a guess.
@@ -254,39 +240,6 @@ add_filter( 'woocommerce_loop_product_link', function ( $link, $product ) {
 function cbee_pf_is_archive() {
 	return function_exists( 'is_shop' ) && ( is_shop() || is_product_taxonomy() );
 }
-
-function cbee_pf_render() {
-	if ( ! cbee_pf_is_archive() ) {
-		return '';
-	}
-	cbee_pf_enqueue();
-
-	$items = array(
-		CBEE_PF_STOCK => 'Sofort verfügbar',
-		CBEE_PF_SALE  => 'Sale',
-	);
-	$html  = '<div class="cbee-pf"><div class="cbee-pf-title">Verfügbarkeit</div>';
-	foreach ( $items as $key => $label ) {
-		$on    = cbee_pf_active( $key );
-		$html .= cbee_pf_item( $label, cbee_pf_url( array( $key => $on ? null : '1', CBEE_PF_LEGACY => null ) ), $on );
-	}
-	return $html . cbee_pf_deprecated_note( 'cbee_availability_filter' ) . '</div>';
-}
-
-/** [cbee_reset_filter]: clears every filter. Place it where it suits, e.g. at the top or bottom of the filters. */
-function cbee_pf_render_reset() {
-	if ( ! cbee_pf_is_archive() ) {
-		return '';
-	}
-	cbee_pf_enqueue();
-	if ( ! ( cbee_pf_engine_needed() || cbee_pf_selected_attributes() ) ) {
-		return '<div class="cbee-pf" hidden></div>'; // keeps the panel count stable for the no-reload swap
-	}
-	return '<div class="cbee-pf"><a class="cbee-pf-reset" href="' . cbee_pf_clear_url() . '" rel="nofollow">Filter zurücksetzen</a>' . cbee_pf_deprecated_note( 'cbee_reset_filter' ) . '</div>';
-}
-add_shortcode( 'cbee_reset_filter', 'cbee_pf_render_reset' );
-
-add_shortcode( 'cbee_availability_filter', 'cbee_pf_render' );
 
 /** Removes the clauses of one taxonomy from a tax_query, nested groups included. */
 function cbee_pf_drop_taxonomy( $clauses, $taxonomy ) {
@@ -430,37 +383,6 @@ function cbee_pf_attribute_terms( $slug ) {
 	}
 	return array( 'label' => wc_attribute_label( $taxonomy ), 'terms' => $out );
 }
-
-/** Deprecated: the single [cbee_filters] bar replaces the per-filter shortcodes. Only administrators see this. */
-function cbee_pf_deprecated_note( $shortcode ) {
-	return current_user_can( 'manage_options' ) ? '<p class="cbee-pf-dep">[' . esc_html( $shortcode ) . '] is deprecated. Replace it with [cbee_filters].</p>' : '';
-}
-
-/** [cbee_attribute_filter attribute="grosse" title="Grösse"] (deprecated): attribute slug without the pa_ prefix. */
-function cbee_pf_render_attribute( $atts ) {
-	$atts = shortcode_atts( array( 'attribute' => '', 'title' => '' ), $atts );
-	$data = cbee_pf_attribute_terms( sanitize_title( $atts['attribute'] ) );
-	if ( ! $data ) {
-		return '';
-	}
-	cbee_pf_enqueue();
-	if ( ! $data['terms'] ) {
-		return '<div class="cbee-pf" hidden></div>'; // keeps the panel count stable for the no-reload swap
-	}
-	$rows         = array();
-	$selected_pos = -1;
-	foreach ( $data['terms'] as $i => $t ) {
-		if ( $t['on'] ) {
-			$selected_pos = $i;
-		}
-		$rows[] = cbee_pf_item( $t['name'], $t['url'], $t['on'], $t['count'] );
-	}
-	$title    = '' !== $atts['title'] ? $atts['title'] : $data['label'];
-	$collapse = count( $rows ) > CBEE_PF_LIMIT && $selected_pos < CBEE_PF_LIMIT;
-	$more     = $collapse ? '<button type="button" class="cbee-pf-more" aria-expanded="false">Mehr anzeigen</button><noscript><style>.cbee-pf-list.is-collapsed .cbee-pf-check{display:flex}.cbee-pf-more{display:none}</style></noscript>' : '';
-	return '<div class="cbee-pf"><div class="cbee-pf-title">' . esc_html( $title ) . '</div><div class="cbee-pf-list' . ( $collapse ? ' is-collapsed' : '' ) . '">' . implode( '', $rows ) . '</div>' . $more . cbee_pf_deprecated_note( 'cbee_attribute_filter' ) . '</div>';
-}
-add_shortcode( 'cbee_attribute_filter', 'cbee_pf_render_attribute' );
 
 /* ---- Filter bar: [cbee_filters] ---- */
 

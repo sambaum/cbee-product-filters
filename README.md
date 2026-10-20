@@ -1,10 +1,9 @@
 # CBee Product Filters
 
-Version 0.7.3. Filter bar for WooCommerce archive pages: pills above the product list, a full Filter view, a sort pill.
+Version 0.8.0. Filter bar for WooCommerce archive pages: pills above the product list, a full Filter view, a sort pill.
 
-**This is the last version that still supports the old shortcodes** (`[cbee_availability_filter]`,
-`[cbee_attribute_filter]`, `[cbee_reset_filter]`). They are deprecated (administrators see a notice under each) and are
-removed in 0.8.0. Git tag: `v0.7.3-last-shortcodes`.
+The old shortcodes (`[cbee_availability_filter]`, `[cbee_attribute_filter]`, `[cbee_reset_filter]`) were removed in
+0.8.0; they would now show as plain text. The last version that has them is 0.7.3 (git tag `v0.7.3-last-shortcodes`).
 
 ## The bar: `[cbee_filters]`
 - One shortcode, or tick "Show the bar automatically above the product list" (hook `woocommerce_before_shop_loop`).
